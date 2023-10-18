@@ -8,9 +8,13 @@ Created on Mon Aug 28 13:02:41 2023
 import VMPff
 import pandas as pd
 import numpy as np
+import os
+
+# this directory
+MYDIR = os.path.dirname(__file__)
 
 import sys
-sys.path.append("../General/")
+sys.path.append(os.path.join(MYDIR, "../General/"))
 import common
 
 # common indices to reference first and last datapoints in some ordered series

@@ -10,9 +10,13 @@ import pandas as pd
 import multiprocessing as mp
 import time
 import ctypes
+import os
+
+# this directory
+MYDIR = os.path.dirname(__file__)
 
 import sys
-sys.path.append("../General/")
+sys.path.append(os.path.join(MYDIR, "../General/"))
 import common
 
 DATE_SIZE = 8
