@@ -46,15 +46,27 @@ VMP_DATA_FIELD_LIST = {
         7: ("dq", *common.DOUBLE, *common.NONE_FIELD), 
         0xd: ("Q-Q0", *common.DOUBLE, *common.NONE_FIELD), 
         0x15: ("control change", *common.NONE_FIELD, 4, 1), 
+        0x18: ("cycle number", *common.DOUBLE, *common.NONE_FIELD), 
         0x1f: ("Ns change", *common.NONE_FIELD, 5, 1), 
+        0x20: ("freq", *common.SINGLE, *common.NONE_FIELD), 
+        0x21: ("|Ewe|", *common.SINGLE, *common.NONE_FIELD), 
+        0x22: ("|I|", *common.SINGLE, *common.NONE_FIELD), 
+        0x23: ("angle(Z)", *common.SINGLE, *common.NONE_FIELD), 
+        0x24: ("|Z|", *common.SINGLE, *common.NONE_FIELD), 
+        0x25: ("Re(Z)", *common.SINGLE, *common.NONE_FIELD), 
+        0x26: ("-Im(Z)", *common.SINGLE, *common.NONE_FIELD), 
         0x27: ("I range", *common.UINT16, *common.NONE_FIELD), 
         0x41: ("counter change", *common.NONE_FIELD, 7, 1), 
         0x46: ("P", *common.SINGLE, *common.NONE_FIELD), 
+        0x4c: ("<I>", *common.SINGLE, *common.NONE_FIELD), 
+        0x4d: ("<Ewe>", *common.SINGLE, *common.NONE_FIELD), 
         0x7b: ("Energy charge", *common.DOUBLE, *common.NONE_FIELD), 
         0x7c: ("Energy discharge", *common.DOUBLE, *common.NONE_FIELD), 
         0x7d: ("Capacitance charge", *common.DOUBLE, *common.NONE_FIELD), 
         0x7e: ("Capacitance discharge", *common.DOUBLE, *common.NONE_FIELD), 
         0x83: ("Ns", *common.UINT16, *common.NONE_FIELD), 
+        0xa9: ("Cs", *common.SINGLE, *common.NONE_FIELD), 
+        0xac: ("Cp", *common.SINGLE, *common.NONE_FIELD), 
         0x1d3: ("Q charge/discharge", *common.DOUBLE, *common.NONE_FIELD), 
         0x1d4: ("half cycle", *common.UINT32, *common.NONE_FIELD), 
         }
@@ -62,7 +74,7 @@ VMP_DATA_FIELD_LIST = {
 REST_MODE = 3
 
 def parseVMPDataCode(code):
-    assert code in VMP_DATA_FIELD_LIST
+    assert code in VMP_DATA_FIELD_LIST, "Unknown data code 0x%x" % (code)
     return VMP_DATA_FIELD_LIST[code]
 
 def parseVMPDataPoint(dataBlock, columns, offsets):
@@ -120,8 +132,12 @@ class VMPdata(VMPsection):
         self.numDataPts = common.getField(self.data, ptr, *common.UINT32)
         self.numCols = common.getField(self.data, ptr, *common.UINT8)
         self.colList = []
+        self.hasFlags = False
         for i in range(self.numCols):
-            self.colList.append(parseVMPDataCode(common.getField(self.data, ptr, *common.UINT16)))
+            colData = parseVMPDataCode(common.getField(self.data, ptr, *common.UINT16))
+            self.colList.append(colData)
+            if colData[COL_FMT] is None:
+                self.hasFlags = True
             
         while common.getField(self.data, ptr, *common.UINT8) != DATA_SENTINEL:
             continue
@@ -138,7 +154,9 @@ class VMPdata(VMPsection):
         startTime = time.perf_counter()
         for i in range(self.numDataPts):
             # read flags
-            flags = common.getField(self.data, self.ptr, *common.UINT8)
+            if self.hasFlags:
+                flags = common.getField(self.data, self.ptr, *common.UINT8)
+                
             for col in self.colList:
                 if col[COL_FMT] is None:
                     # flag value
@@ -150,16 +168,17 @@ class VMPdata(VMPsection):
         common.printElapsedTime("Parse", startTime, finishTime)
         return
     
-    # !!! UNDER CONSTRUCTION !!!
-    # this currently runs slower than the single-process version
-    # not sure why this is the case, since we are using shared memory for reading
-    # and other arguments passed to the map function are just integers or small strings
-    # for now, don't use this function
+    # parallelized version
     def parseMP(self):
         self.dataList = {}            
         # compute the offsets of fields in the block
         self.blockOffsets = [0] * self.numCols
-        szPrev = common.BYTE_SIZE      #size of flags
+        
+        if self.hasFlags:
+            szPrev = common.BYTE_SIZE      #size of flags
+        else:
+            szPrev = 0
+            
         for i, col in enumerate(self.colList):
             # check if flag - offset 0
             if col[COL_FMT] is None:
@@ -181,11 +200,8 @@ class VMPdata(VMPsection):
         with mp.Pool(mp.cpu_count(), initializer = common.initProcess, initargs = (sharedData, )) as pool:
             # profiling
             startTime = time.perf_counter()
-            # Idea 1: for each data column, read values from the data array in parallel
-            # this turned out to be pretty slow
-            #'''
+            # for each data column, read values from the data array in parallel
             for col, blockOffs in zip(self.colList, self.blockOffsets):
-#                st = time.perf_counter()
                 if col[COL_FMT] is None:
                     # flag value
                     fbit, fsize = col[COL_FBIT], col[COL_FSIZE]
@@ -193,38 +209,6 @@ class VMPdata(VMPsection):
                 else:
                     fmt, size = col[COL_FMT], col[COL_SIZE]
                     self.dataList[col[COL_NAME]] = pool.starmap(common.getFieldFlatShared, [(dataOffset + idx * self.dataBlockSize + blockOffs, fmt, size) for idx in range(self.numDataPts)])
-                    
-#                end = time.perf_counter()
-#                common.printElapsedTime("Item", st, end)
-            #'''
-            
-            # Idea 2: read data columns in parallel
-            # this is also pretty slow; cold cache startups are problematic
-            '''
-            flagCols = [(col, None) for col in self.colList if col[COL_FMT] is None]
-            wordCols = [(col, blockOffset) for col, blockOffset in zip(self.colList, self.blockOffsets) if col[COL_FBIT] is None]
-            print("Reading %d flags and %d words per data point" % (len(flagCols), len(wordCols)))
-            st = time.perf_counter()
-            flagData = pool.starmap(getBitFieldsStridedFlatShared, [(dataOffset, self.dataBlockSize, self.numDataPts, col[0][COL_FBIT], col[0][COL_FSIZE]) for col in flagCols])
-            end = time.perf_counter()
-            common.printElapsedTime("Flag parsing", st, end)
-            st = time.perf_counter()
-            wordData = pool.starmap(getFieldsStridedFlatShared, [(dataOffset + col[1], self.dataBlockSize, self.numDataPts, col[0][COL_FMT], col[0][COL_SIZE]) for col in wordCols])
-            end = time.perf_counter()
-            common.printElapsedTime("Word parsing", st, end)
-            # write to results
-            for col, data in zip(flagCols + wordCols, flagData + wordData):
-                self.dataList[col[0][COL_NAME]] = data
-                
-            '''
-            
-            # Idea 3: have each worker parse all the fields of each datapoint
-            '''
-            result = pool.starmap(parseVMPDataPoint, [(self.data[dataOffset + idx * self.dataBlockSize: dataOffset + (idx + 1) * self.dataBlockSize], self.colList, self.blockOffsets) for idx in range(self.numDataPts)])
-            for i, col in enumerate(self.colList):
-                self.dataList[col[COL_NAME]] = [dataPt[i] for dataPt in result]
-                
-            '''
             
             finishTime = time.perf_counter()
             
