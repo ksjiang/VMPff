@@ -3,5 +3,10 @@
 
 # myself
 !/.gitignore
+
+# readme
+./README.md
+
+# folders
 !/General
 !/Biologic\ Parser/
