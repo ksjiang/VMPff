@@ -5,7 +5,7 @@
 !/.gitignore
 
 # readme
-./README.md
+!./README.md
 
 # folders
 !/General
