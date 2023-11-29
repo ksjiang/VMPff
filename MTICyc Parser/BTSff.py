@@ -15,8 +15,6 @@ MYDIR = os.path.dirname(__file__)
 import sys
 sys.path.append(os.path.join(MYDIR, "../General/"))
 import common
-sys.path.append(os.path.join(MYDIR, "../BioLogic Parser"))
-import cycle_metrics
 
 FILE_HEADER = b"NEWARE"
 YEAR_SLEN, MONTH_SLEN, DAY_SLEN = 4, 2, 2
@@ -54,6 +52,60 @@ BTS_RECORD_INFO_SPEC = [
 
 BTS_RECORD_INFO = np.dtype(BTS_RECORD_INFO_SPEC)
 BTS_STEP_TYPES = [None, "CC_charge", "CC_discharge", None, "Rest", "Loop", "Stop"]
+
+# returns the leading edge (smaller index) of changes
+# expects numpy array, so convert using to_numpy() if using pandas
+def findStepChanges(series):
+    return np.where(np.diff(series) != 0)[0]
+
+def findHalfStepChanges(series, triggers):
+    changes = []
+    for trigger in triggers:
+        hot = np.where(series == trigger)[0]
+        leading_edge_idcs = np.where(np.diff(hot) != 1)[0] + 1
+        # subtract one to get leading edge index (don't subtract if already 0)
+        hot_leading_edges = np.maximum(0, hot[leading_edge_idcs] - 1)
+        # treat the first instance
+        # subtract one to get leading edge index (don't subtract if already 0)
+        first = max([0, hot[0] - 1])
+        if first not in hot_leading_edges:
+            hot_leading_edges = np.concatenate([[first], hot_leading_edges], axis = 0)
+            
+        changes.append(hot_leading_edges)
+        
+    return np.sort(np.concatenate(changes, axis = 0))
+
+# accumulates a series by referencing step changes
+# expects numpy array
+def accumulateSeriesSteps(series, change_indices):
+    # new series
+    r = np.zeros(len(series))
+    # accumulator and mark
+    a = 0.
+    mark = 0
+    for change_index in change_indices:
+        r[mark: change_index + 1] = a + series[mark: change_index + 1]
+        # update accumulator and mark
+        a += series[change_index]
+        mark = change_index + 1
+        
+    # finish the series
+    r[mark: ] = a + series[mark: ]
+    return r
+
+def fillCount(series_size, change_indices):
+    # new series
+    r = np.zeros(series_size, dtype = int)
+    a = 0
+    mark = 0
+    for change_index in change_indices:
+        r[mark: change_index + 1] = a
+        a += 1
+        mark = change_index + 1
+        
+    # finish the series
+    r[mark: ] = a
+    return r
 
 def fromFile(fileName):
     ptr = common.pointer()
@@ -145,11 +197,11 @@ def fromFile(fileName):
     # now, we accumulate some variables, such as time and charge
     # referenced to the beginning of the experiment
     # find the rows where the step changes (leading edge)
-    step_changes = cycle_metrics.findStepChanges(np.array(dataframe["Ns"]))
+    step_changes = findStepChanges(np.array(dataframe["Ns"]))
     # find where the current changes direction (occurs less frequently than step_changes)
-    half_step_changes = cycle_metrics.findHalfStepChanges(np.array(dataframe["mode"]), (BTS_STEP_TYPES.index("CC_discharge"), BTS_STEP_TYPES.index("CC_charge")))
-    dataframe["half cycle"] = cycle_metrics.fillCount(len(dataframe["Ns"]), half_step_changes)
-    dataframe["time"] = cycle_metrics.accumulateSeriesSteps(np.array(dataframe["step_time"]), step_changes)
-    dataframe["Q-Q0"] = cycle_metrics.accumulateSeriesSteps(np.array(dataframe["Q charge/discharge"]) * np.where(np.array(dataframe["mode"]) == BTS_STEP_TYPES.index("CC_discharge"), -1, 1), step_changes)
+    half_step_changes = findHalfStepChanges(np.array(dataframe["mode"]), (BTS_STEP_TYPES.index("CC_discharge"), BTS_STEP_TYPES.index("CC_charge")))
+    dataframe["half cycle"] = fillCount(len(dataframe["Ns"]), half_step_changes)
+    dataframe["time"] = accumulateSeriesSteps(np.array(dataframe["step_time"]), step_changes)
+    dataframe["Q-Q0"] = accumulateSeriesSteps(np.array(dataframe["Q charge/discharge"]) * np.where(np.array(dataframe["mode"]) == BTS_STEP_TYPES.index("CC_discharge"), -1, 1), step_changes)
     
     return header_info, step_infos, dataframe

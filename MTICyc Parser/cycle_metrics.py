@@ -5,7 +5,7 @@ Created on Mon Aug 28 13:02:41 2023
 @author: Kyle
 """
 
-import VMPff
+import BTSff
 import pandas as pd
 import numpy as np
 import os
@@ -18,20 +18,21 @@ sys.path.append(os.path.join(MYDIR, "../General/"))
 from cycle_tools import *
 
 # Mode 1 (constant-capacity cycling)
+# TODO: update this for BTS
 # step numbers in the sequence - Biologic
-MODE1_REST = (0, 0)
-MODE1_CYCLE_PLATING = (1, 0)
-MODE1_CYCLE_STRIPPING = (2, 1)
+MODE1_REST = (1, 0)
+MODE1_CYCLE_PLATING = (2, 1)
+MODE1_CYCLE_STRIPPING = (4, 2)
 
 # Aurbach protocol
-# step numbers in the PNNL sequence - Biologic
-PNNL_REST = (0, 0)
-PNNL_INITIAL_PLATING = (1, 0)
-PNNL_INITIAL_STRIPPING = (2, 1)
-PNNL_TEST_PLATING = (3, 2)
-PNNL_SHORT_CYCLE_PLATING = (4, 3)
-PNNL_SHORT_CYCLE_STRIPPING = (5, 4)
-PNNL_TEST_STRIPPING = (6, 23)
+# step numbers in the PNNL sequence - BTS
+PNNL_REST = (1, 0)
+PNNL_INITIAL_PLATING = (2, 1)
+PNNL_INITIAL_STRIPPING = (4, 2)
+PNNL_TEST_PLATING = (6, 3)
+PNNL_SHORT_CYCLE_PLATING = (8, 4)
+PNNL_SHORT_CYCLE_STRIPPING = (10, 5)
+PNNL_TEST_STRIPPING = (13, 22)
 # constants
 PNNL_NUM_SHORT_CYCLES = 10
 
@@ -83,9 +84,9 @@ def PNNL_aurbach_timeseries(measurement_sequence):
 
 def getCycleData_hc(measurement_sequence, cycle, half_cycle, include_rest):
     if include_rest:
-        cycleData = measurement_sequence.loc[(measurement_sequence["Ns"] == cycle) & (measurement_sequence["half cycle"] == half_cycle)]
+        cycleData = measurement_sequence.loc[((measurement_sequence["Ns"] == cycle) | (measurement_sequence["Ns"] == cycle + 1)) & (measurement_sequence["half cycle"] == half_cycle)]
     else:
-        cycleData = measurement_sequence.loc[(measurement_sequence["Ns"] == cycle) & (measurement_sequence["half cycle"] == half_cycle) & (measurement_sequence["mode"] != VMPff.REST_MODE)]
+        cycleData = measurement_sequence.loc[(measurement_sequence["Ns"] == cycle) & (measurement_sequence["half cycle"] == half_cycle)]
         
     return cycleData
 
@@ -114,4 +115,3 @@ def VvsCapacity_hc(measurement_sequence, area, cycle, half_cycle, relative = Tru
             "capacity": Q, 
             "voltage": V, 
             })
-    
