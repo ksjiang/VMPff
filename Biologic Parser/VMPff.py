@@ -240,10 +240,3 @@ def fromFile(fileName):
     ptr.add(x.getEnd())
     y = VMPdata(contents[ptr.getValue(): ])
     return x, y
-    
-# test parsing datastructure - PASS
-'''
-x, y = fromFile("./20230825_Li_15 mm_2 Celgard_1'37 M LiFSI DME TTE_Cu_16 mm_3 sp_PNNLaur_C11.mpr")
-print(y.colList)
-Y = y.getDataFrame()
-'''

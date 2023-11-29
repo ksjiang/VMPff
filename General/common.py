@@ -19,13 +19,15 @@ LONG_SIZE = 4
 LLONG_SIZE = 8
 
 # data types and their struct symbolcodes
+# by default, we assume little-endian
 SINGLE = ("<f", LONG_SIZE)
 DOUBLE = ("<d", LLONG_SIZE)
 UINT8 = ("<B", BYTE_SIZE)
 UINT16 = ("<H", SHORT_SIZE)
 UINT32 = ("<I", LONG_SIZE)
+INT32 = ("<i", LONG_SIZE)
 
-# big-endian (gross!)
+# in needed cases, big-endian (gross!)
 SINGLE_BE = (">f", LONG_SIZE)
 DOUBLE_BE = (">d", LLONG_SIZE)
 
@@ -48,6 +50,9 @@ class pointer(object):
     def add(self, delta):
         self.setValue(self.getValue() + delta)
         return
+    
+def bytes2Cstring(bs):
+    return str(bs.split(b'\x00')[0], "utf-8")
     
 def checkField(data, ptr, expected):
     assert data[ptr.getValue(): ptr.getValue() + len(expected)] == expected
