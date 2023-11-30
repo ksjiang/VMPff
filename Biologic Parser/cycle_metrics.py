@@ -27,7 +27,7 @@ class BiologicExperiment(object):
         self.metadata = [x]
         self.measurement_sequence = y.getDataFrame()
         return
-        
+    
     def getCycleData_hc(self, cycle, half_cycle, include_rest):
         if include_rest:
             cycleData = self.measurement_sequence.loc[(self.measurement_sequence["Ns"] == cycle) & (self.measurement_sequence["half cycle"] == self.hc + half_cycle)]
@@ -36,7 +36,7 @@ class BiologicExperiment(object):
             
         return cycleData
     
-
+    
 class BiologicMODE1CyclingExperiment(BiologicExperiment, cycle_tools.MODE1CyclingExperiment):
     def __init__(self, area, hc = 0):
         BiologicExperiment.__init__(self, hc)
@@ -49,4 +49,5 @@ class BiologicPNNLCyclingExperiment(BiologicExperiment, cycle_tools.PNNLCyclingE
         BiologicExperiment.__init__(self, hc)
         cycle_tools.PNNLCyclingExperiment.__init__(self, area, REST = (0, 0), INITIAL_PLATING = (1, 0), INITIAL_STRIPPING = (2, 1), TEST_PLATING = (3, 2), SHORT_CYCLE_PLATING = (4, 3), SHORT_CYCLE_STRIPPING = (5, 4), TEST_STRIPPING = (6, 23), NUM_SHORT_CYCLES = 10)
         return
+    
     

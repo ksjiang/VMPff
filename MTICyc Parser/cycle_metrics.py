@@ -26,7 +26,7 @@ class MTICycExperiment(object):
         self.metadata = [x1, x2]
         self.measurement_sequence = Y
         return
-        
+    
     def getCycleData_hc(self, cycle, half_cycle, include_rest):
         if include_rest:
             cycleData = self.measurement_sequence.loc[((self.measurement_sequence["Ns"] == cycle) | (self.measurement_sequence["Ns"] == cycle + 1)) & (self.measurement_sequence["half cycle"] == half_cycle)]

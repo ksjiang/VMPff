@@ -27,10 +27,11 @@ class MissingCycleDataException(Exception):
     pass
 
 
-# base class for galvanostatic cycling data container
+# base class for galvanostatic cycling data
 class GalvanostaticCyclingExperiment(object):
     def __init__(self, area):
         self.area = area
+        # these attributes must be instantiated by an instrument-specific method
         self.metadata = None
         self.measurement_sequence = None
         return
@@ -67,8 +68,13 @@ class GalvanostaticCyclingExperiment(object):
     
     # =============================================================================================
     
-    def getVvsTAfterStep(self, step_id, relative = True):
-        cycleData = self.measurement_sequence.loc[self.measurement_sequence["Ns"] > step_id]
+    def getVvsTAfterStep(self, step_id = None, relative = True):
+        if step_id is None:
+            # return entire sequence
+            cycleData = self.measurement_sequence
+        else:
+            cycleData = self.measurement_sequence.loc[self.measurement_sequence["Ns"] > step_id]
+            
         t, V = np.array(cycleData["time"]), np.array(cycleData["Ewe"])
         t = sec2hr(t)
         if relative and len(t) > 0:
@@ -79,6 +85,8 @@ class GalvanostaticCyclingExperiment(object):
                 "voltage": V, 
                 })
     
+    # this is NOT DEFINED here. it depends on the instrument used to collect the data
+    # so we defer to the child class to inherit this method from an instrument experiment parent class
     def getCycleData_hc(self, cycle, half_cycle, include_rest):
         raise NotImplementedError
         
@@ -107,8 +115,8 @@ class GalvanostaticCyclingExperiment(object):
                 "capacity": Q, 
                 "voltage": V, 
                 })
-        
-        
+    
+    
 # class representing constant-capacity cycling experiments
 class MODE1CyclingExperiment(GalvanostaticCyclingExperiment):
     def __init__(self, area, REST, CYCLE_PLATING, CYCLE_STRIPPING):
@@ -118,9 +126,11 @@ class MODE1CyclingExperiment(GalvanostaticCyclingExperiment):
         self.CYCLE_STRIPPING = CYCLE_STRIPPING
         return
     
+    # default behavior is to get all data after the rest step
     def getTimeSeries(self):
-        return self.getVvsTAfterStep(self.REST[0])
+        return self.getVvsTAfterStep(step_id = self.REST[0])
     
+    # definition of Coulombic efficiency for constant-capacity cycling
     def calculate_CE(self):
         # we can only calculate CEs up to the last full cycle
         # TODO: there is probably a better way to do this, by extracting the total number of half cycles
@@ -153,7 +163,7 @@ class PNNLCyclingExperiment(GalvanostaticCyclingExperiment):
         return
     
     def getTimeSeries(self):
-        return self.getVvsTAfterStep(self.REST[0])
+        return self.getVvsTAfterStep(step_id = self.REST[0])
     
     def calculate_CE(self):
         # calculate initial cycle CE
