@@ -191,7 +191,7 @@ def fromFile(fileName):
     # wish there was a way to verify the checksum, but for now just delete it
     del dataframe["checksum"]
     
-    # remove invalid rows
+    # remove invalid rows and reset the index (original index is preserved in record_no column)
     dataframe = dataframe.loc[dataframe["status"] == STATUS_SUCCESS].reset_index()
     
     # now, we accumulate some variables, such as time and charge

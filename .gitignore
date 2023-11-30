@@ -1,5 +1,8 @@
 
+# by default, ignore everything
 /*
+# additionally, ignore compiled Python bytecode files
+**/__pycache__
 
 # myself
 !/.gitignore

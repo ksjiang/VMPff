@@ -37,20 +37,17 @@ PNNL_NUM_SHORT_CYCLES = 10
 
 # methods to calculate the Coulombic efficiency
 #===================================================================================================
-def MODE1_CE(measurement_sequence, area):
+def MODE1_CE(measurement_sequence, area, hc_step = 0):
     # we can only calculate CEs up to the last full cycle
+    # TODO: there is probably a better way to do this, by extracting the total number of half cycles
     CEs = []
     cyc_num = 0
     while True:
-        plating = VvsCapacity_hc(measurement_sequence, area, MODE1_CYCLE_PLATING[0], MODE1_CYCLE_PLATING[1] + 2 * cyc_num)
-        if len(plating["capacity"]) == 0:
-            break
-        
-        stripping = VvsCapacity_hc(measurement_sequence, area, MODE1_CYCLE_STRIPPING[0], MODE1_CYCLE_STRIPPING[1] + 2 * cyc_num)
-        if len(stripping["capacity"]) == 0:
-            break
-        
-        # calculate CE
+        plating = VvsCapacity_hc(measurement_sequence, area, MODE1_CYCLE_PLATING[0], MODE1_CYCLE_PLATING[1] + 2 * cyc_num, hc_step = hc_step)
+        if not checkHalfCycle(plating): break
+        stripping = VvsCapacity_hc(measurement_sequence, area, MODE1_CYCLE_STRIPPING[0], MODE1_CYCLE_STRIPPING[1] + 2 * cyc_num, hc_step = hc_step)
+        if not checkHalfCycle(stripping): break
+        # calculate CE for this cycle
         CEs.append(capacityDiff(stripping) / capacityDiff(plating))
         cyc_num += 1
         
@@ -58,28 +55,38 @@ def MODE1_CE(measurement_sequence, area):
 
 def PNNL_aurbach_CE(measurement_sequence, area, hc_step = 0):
     # calculate initial cycle CE
-    initialCE = capacityDiff(VvsCapacity_hc(measurement_sequence, area, *PNNL_INITIAL_STRIPPING, hc_step = hc_step)) / capacityDiff(VvsCapacity_hc(measurement_sequence, area, *PNNL_INITIAL_PLATING, hc_step = hc_step))
+    initial_plating = VvsCapacity_hc(measurement_sequence, area, *PNNL_INITIAL_STRIPPING, hc_step = hc_step)
+    checkHalfCycle(initial_plating, throw_error = True)
+    initial_stripping = VvsCapacity_hc(measurement_sequence, area, *PNNL_INITIAL_PLATING, hc_step = hc_step)
+    checkHalfCycle(initial_stripping, throw_error = True)
+    initialCE = capacityDiff(initial_stripping) / capacityDiff(initial_plating)
     
     # calculate test cycle CE
     plating_caps, stripping_caps = [], []
-    # initial plating
-    plating_caps.append(capacityDiff(VvsCapacity_hc(measurement_sequence, area, *PNNL_TEST_PLATING, hc_step = hc_step)))
+    # test plating
+    test_plating = VvsCapacity_hc(measurement_sequence, area, *PNNL_TEST_PLATING, hc_step = hc_step)
+    checkHalfCycle(test_plating, throw_error = True)
+    plating_caps.append(capacityDiff(test_plating))
     #cycling
     for i in range(PNNL_NUM_SHORT_CYCLES):
-        plating_caps.append(capacityDiff(VvsCapacity_hc(measurement_sequence, area, PNNL_SHORT_CYCLE_PLATING[0], PNNL_SHORT_CYCLE_PLATING[1] + 2 * i, hc_step = hc_step)))
-        stripping_caps.append(capacityDiff(VvsCapacity_hc(measurement_sequence, area, PNNL_SHORT_CYCLE_STRIPPING[0], PNNL_SHORT_CYCLE_STRIPPING[1] + 2 * i, hc_step = hc_step)))
+        short_plating = VvsCapacity_hc(measurement_sequence, area, PNNL_SHORT_CYCLE_PLATING[0], PNNL_SHORT_CYCLE_PLATING[1] + 2 * i, hc_step = hc_step)
+        checkHalfCycle(short_plating, throw_error = True)
+        plating_caps.append(capacityDiff(short_plating))
+        short_stripping = VvsCapacity_hc(measurement_sequence, area, PNNL_SHORT_CYCLE_STRIPPING[0], PNNL_SHORT_CYCLE_STRIPPING[1] + 2 * i, hc_step = hc_step)
+        checkHalfCycle(short_stripping, throw_error = True)
+        stripping_caps.append(capacityDiff(short_stripping))
         
-    # final stripping
-    stripping_caps.append(capacityDiff(VvsCapacity_hc(measurement_sequence, area, *PNNL_TEST_STRIPPING, hc_step = hc_step)))
+    # test stripping
+    test_stripping = VvsCapacity_hc(measurement_sequence, area, *PNNL_TEST_STRIPPING, hc_step = hc_step)
+    checkHalfCycle(test_stripping, throw_error = True)
+    stripping_caps.append(capacityDiff(test_stripping))
     testCE = sum(stripping_caps) / sum(plating_caps)
     return initialCE, testCE
 
 #===================================================================================================
 
-def PNNL_aurbach_timeseries(measurement_sequence):
-    # we are interested in all cycles except for the first (rest step)
-    cycleData = measurement_sequence.loc[measurement_sequence["Ns"] > PNNL_REST[0]]
-    return cycleData[["time", "Ewe"]].reset_index()
+# get all data after rest step
+PNNL_aurbach_timeseries = lambda measurement_sequence: getVvsTAfterStep(measurement_sequence, PNNL_REST[0])
 
 def getCycleData_hc(measurement_sequence, cycle, half_cycle, include_rest):
     if include_rest:
