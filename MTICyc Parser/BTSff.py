@@ -7,6 +7,7 @@ Created on Wed Nov 29 01:49:29 2023
 
 import os
 
+import time
 import numpy as np
 import pandas as pd
 
@@ -174,8 +175,9 @@ def fromFile(fileName):
         
     # this brings us to the data records
     # the pointer object holds the offset to the data records
-    # use numpy from_file with this offset to efficiently extract data
-    data = np.fromfile(fileName, dtype = BTS_RECORD_INFO, offset = ptr.getValue())
+    # use numpy frombuffer with this offset to efficiently extract data
+    startTime = time.perf_counter()
+    data = np.frombuffer(contents, dtype = BTS_RECORD_INFO, offset = ptr.getValue())
     dataframe = pd.DataFrame(data = data, columns = [_[0] for _ in BTS_RECORD_INFO_SPEC])
     # perform conversions on some of the columns
     # change type of step_time to float
@@ -193,6 +195,8 @@ def fromFile(fileName):
     
     # remove invalid rows and reset the index (original index is preserved in record_no column)
     dataframe = dataframe.loc[dataframe["status"] == STATUS_SUCCESS].reset_index()
+    finishTime = time.perf_counter()
+    common.printElapsedTime("Parse", startTime, finishTime)
     
     # now, we accumulate some variables, such as time and charge
     # referenced to the beginning of the experiment

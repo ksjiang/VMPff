@@ -25,7 +25,7 @@ class BiologicExperiment(object):
     def fromFile(self, fileName):
         x, y = VMPff.fromFile(fileName)
         self.metadata = [x]
-        self.measurement_sequence = y.getDataFrame()
+        self.measurement_sequence = y.getDataFrame(mp = "Vec")
         return
     
     def getCycleData_hc(self, cycle, half_cycle, include_rest):

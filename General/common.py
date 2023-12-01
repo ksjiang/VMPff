@@ -19,6 +19,8 @@ LONG_SIZE = 4
 LLONG_SIZE = 8
 
 # data types and their struct symbolcodes
+FMT_SPEC = 0
+FMT_SIZE = 1
 # by default, we assume little-endian
 SINGLE = ("<f", LONG_SIZE)
 DOUBLE = ("<d", LLONG_SIZE)
@@ -26,10 +28,19 @@ UINT8 = ("<B", BYTE_SIZE)
 UINT16 = ("<H", SHORT_SIZE)
 UINT32 = ("<I", LONG_SIZE)
 INT32 = ("<i", LONG_SIZE)
-
 # in needed cases, big-endian (gross!)
 SINGLE_BE = (">f", LONG_SIZE)
 DOUBLE_BE = (">d", LLONG_SIZE)
+
+# numpy equivalent types
+NP_TYPES = {
+        SINGLE[FMT_SPEC]: np.float32, 
+        DOUBLE[FMT_SPEC]: np.float64, 
+        UINT8[FMT_SPEC]: np.uint8, 
+        UINT16[FMT_SPEC]: np.uint16,
+        UINT32[FMT_SPEC]: np.uint32, 
+        INT32[FMT_SPEC]: np.int32, 
+        }
 
 # to denote an empty byte or bit field
 NONE_FIELD = (None, None)

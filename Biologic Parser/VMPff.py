@@ -6,6 +6,7 @@ Created on Mon Aug 28 11:23:15 2023
 """
 
 # imports
+import numpy as np
 import pandas as pd
 import multiprocessing as mp
 import time
@@ -172,6 +173,38 @@ class VMPdata(VMPsection):
         common.printElapsedTime("Parse", startTime, finishTime)
         return
     
+    # version that takes advantage of numpy's frombuffer function
+    def parseVec(self):
+        # create numpy ndarray data structure
+        record_spec = []
+        if self.hasFlags:
+            record_spec.append(("flags", np.uint8))
+            
+        for col in self.colList:
+            if col[COL_FMT] is None:
+                # flag value - skip
+                continue
+            else:
+                record_spec.append((col[COL_NAME], common.NP_TYPES[col[COL_FMT]]))
+                
+        # profiling
+        startTime = time.perf_counter()
+        data = np.frombuffer(self.data, dtype = np.dtype(record_spec), count = self.numDataPts, offset = self.ptr.getValue())
+        dataframe = pd.DataFrame(data = data, columns = [_[0] for _ in record_spec])
+        
+        self.dataList = dict()
+        for col in self.colList:
+            if col[COL_FMT] is None:
+                # flag value
+                self.dataList[col[COL_NAME]] = common.getBitField(np.array(dataframe["flags"]), col[COL_FBIT], col[COL_FSIZE])
+                
+            else:
+                self.dataList[col[COL_NAME]] = np.array(dataframe[col[COL_NAME]])
+                
+        finishTime = time.perf_counter()
+        common.printElapsedTime("Parse", startTime, finishTime)
+        return
+    
     # parallelized version
     def parseMP(self):
         self.dataList = {}            
@@ -221,9 +254,11 @@ class VMPdata(VMPsection):
         self.ptr.add(self.numDataPts * self.dataBlockSize)
         return
     
-    def getDataFrame(self, mp = False):
-        if mp:
+    def getDataFrame(self, mp = "None"):
+        if mp == "MP":
             self.parseMP()
+        elif mp == "Vec":
+            self.parseVec()
         else:
             self.parse()
             
