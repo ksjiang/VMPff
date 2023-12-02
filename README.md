@@ -16,7 +16,7 @@ No installation is needed. Simply `git clone https://github.com/ksjiang/VMPff <P
     
 Then, the extracted data is available in `experiment.measurement_sequence`.
 
-Usually, it is desirable to interpret the data in some way. For this, more specific classes that contain information about the specific experiment are needed. These experiments can be organized as classes in an instrument-agnostic manner in `General/cycle_tools.py`.
+Usually, it is desirable to interpret the data in some way, depending on the specific experiment it is from. For this, more information about the experiment is needed. Information about experiments can be organized as classes in an instrument-agnostic manner in `General/cycle_tools.py`.
 
 ### Galvanostatic Experiments
 
