@@ -134,7 +134,7 @@ def fromFile(fileName):
     ptr.setValue(USERNAME_OFFS)
     header_info["username"] = common.bytes2Cstring(common.getRaw(contents, ptr, USERNAME_LEN))
     header_info["batch"] = common.bytes2Cstring(common.getRaw(contents, ptr, BATCH_LEN))
-    header_info["memo"]= common.bytes2Cstring(common.getRaw(contents, ptr, MEMO_LEN))
+    header_info["memo"] = common.bytes2Cstring(common.getRaw(contents, ptr, MEMO_LEN))
     
     # this brings us to the step definitions
     # extract the step definitions from header
