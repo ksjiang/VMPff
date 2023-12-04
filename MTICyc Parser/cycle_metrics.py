@@ -27,13 +27,16 @@ class MTICycExperiment(object):
         self.measurement_sequence = Y
         return
     
-    def getCycleData_hc(self, cycle, half_cycle, include_rest):
+    def getCycleDataIdx_hc(self, cycle, half_cycle, include_rest):
         if include_rest:
-            cycleData = self.measurement_sequence.loc[((self.measurement_sequence["Ns"] == cycle) | (self.measurement_sequence["Ns"] == cycle + 1)) & (self.measurement_sequence["half cycle"] == half_cycle)]
+            indices = self.measurement_sequence[((self.measurement_sequence["Ns"] == cycle) | (self.measurement_sequence["Ns"] == cycle + 1)) & (self.measurement_sequence["half cycle"] == half_cycle)].index
         else:
-            cycleData = self.measurement_sequence.loc[(self.measurement_sequence["Ns"] == cycle) & (self.measurement_sequence["half cycle"] == half_cycle)]
-        
-        return cycleData
+            indices = self.measurement_sequence[(self.measurement_sequence["Ns"] == cycle) & (self.measurement_sequence["half cycle"] == half_cycle)].index
+            
+        return indices
+    
+    def getCycleData_hc(self, cycle, half_cycle, include_rest):
+        return self.measurement_sequence.loc[self.getCycleDataIdx_hc(cycle, half_cycle, include_rest)]
     
     
 class MTICycMODE1CyclingExperiment(MTICycExperiment, cycle_tools.MODE1CyclingExperiment):
