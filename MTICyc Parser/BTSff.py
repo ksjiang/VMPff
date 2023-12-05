@@ -194,7 +194,7 @@ def fromFile(fileName):
     del dataframe["checksum"]
     
     # remove invalid rows and reset the index (original index is preserved in record_no column)
-    dataframe = dataframe.loc[dataframe["status"] == STATUS_SUCCESS].reset_index()
+    dataframe = dataframe.loc[dataframe["status"] == STATUS_SUCCESS].reset_index(drop = True)
     finishTime = time.perf_counter()
     common.printElapsedTime("Parse", startTime, finishTime)
     
