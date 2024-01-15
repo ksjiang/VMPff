@@ -17,14 +17,17 @@ import cycle_tools
 
 # class representing experiments recorded by Biologic
 class BiologicExperiment(object):
-    def __init__(self, hc = 0):
+    def __init__(self, version, hc = 0):
+        # software version
+        self.version = version
         self.hc = hc
         return
     
     # instantiate fromFile
     def fromFile(self, fileName):
-        x, y = VMPff.fromFile(fileName)
+        x, y = VMPff.fromFile(fileName, self.version)
         self.metadata = [x]
+        # default to vectorized parsing, because it is FAST!
         self.measurement_sequence = y.getDataFrame(mp = "Vec")
         return
     
@@ -41,15 +44,15 @@ class BiologicExperiment(object):
     
     
 class BiologicMODE1CyclingExperiment(BiologicExperiment, cycle_tools.MODE1CyclingExperiment):
-    def __init__(self, area, hc = 0):
-        BiologicExperiment.__init__(self, hc)
+    def __init__(self, area, version = 1146, hc = 0):
+        BiologicExperiment.__init__(self, version, hc)
         cycle_tools.MODE1CyclingExperiment.__init__(self, area, REST = (0, 0), CYCLE_PLATING = (1, 0), CYCLE_STRIPPING = (2, 1))
         return
     
     
 class BiologicPNNLCyclingExperiment(BiologicExperiment, cycle_tools.PNNLCyclingExperiment):
-    def __init__(self, area, hc = 0):
-        BiologicExperiment.__init__(self, hc)
+    def __init__(self, area, version = 1146, hc = 0):
+        BiologicExperiment.__init__(self, version, hc)
         cycle_tools.PNNLCyclingExperiment.__init__(self, area, REST = (0, 0), INITIAL_PLATING = (1, 0), INITIAL_STRIPPING = (2, 1), TEST_PLATING = (3, 2), SHORT_CYCLE_PLATING = (4, 3), SHORT_CYCLE_STRIPPING = (5, 4), TEST_STRIPPING = (6, 23), NUM_SHORT_CYCLES = 10)
         return
     

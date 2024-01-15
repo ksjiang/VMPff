@@ -28,6 +28,7 @@ UINT8 = ("<B", BYTE_SIZE)
 UINT16 = ("<H", SHORT_SIZE)
 UINT32 = ("<I", LONG_SIZE)
 INT32 = ("<i", LONG_SIZE)
+UINT64 = ("<Q", LLONG_SIZE)
 # in needed cases, big-endian (gross!)
 SINGLE_BE = (">f", LONG_SIZE)
 DOUBLE_BE = (">d", LLONG_SIZE)
@@ -66,12 +67,14 @@ def bytes2Cstring(bs):
     return str(bs.split(b'\x00')[0], "utf-8")
     
 def checkField(data, ptr, expected):
-    assert data[ptr.getValue(): ptr.getValue() + len(expected)] == expected
+    actual = data[ptr.getValue(): ptr.getValue() + len(expected)]
+    assert actual == expected, "At 0x%x, expected %s but got %s" % (ptr.getValue(), expected, actual)
     ptr.add(len(expected))
     return
 
 def checkFieldFlat(data, ptrVal, expected):
-    assert data[ptrVal: ptrVal + len(expected)] == expected
+    actual = data[ptrVal: ptrVal + len(expected)]
+    assert actual == expected, "At 0x%x, expected %s but got %s" % (ptrVal, expected, actual)
     return
 
 def getRaw(data, ptr, size):
@@ -153,8 +156,11 @@ STANDARD_DIMS = (6, 4)
 SQUARE_DIMS = (6, 6)
 SMALL_DIMS = (5, 4)
 WIDE_DIMS = (7, 4)
+LWIDE_DIMS = (8, 6)
 XWIDE_DIMS = (10, 4)
+XWIDE_DIMS_FLAT = (20, 4)
 TALL_DIMS = (4, 6)
+WTALL_DIMS = (7, 10)
 CAPTION_SIZE = 16
 LONG_CAPTION_SIZE = 12
 CBAR_SIZE = (1, 6)
@@ -171,7 +177,7 @@ ERRORBAR_SIZE = 5
 GREY_PATCH = (0.5, 0.5, 0.5, 0.5)
 LIGHT_GREY_PATCH = (0.85, 0.85, 0.85, 0.5)
 MARKER_WIDTH_SERIES_LIMS = (1, 3)
-GREYSCALE_SERIES_LIMS= (0.7, 0.2)
+GREYSCALE_SERIES_LIMS = (0.7, 0.2)
 HISTOGRAM_BAR_EDGEWIDTH = 1.0
 
 # font settings
@@ -242,9 +248,13 @@ def IntegrateWithBaseline(y, x, xleft, xright):
     return total_area - below_area
 
 def createTicks(left_bound, right_bound, step):
+    sign = 1.
+    if step < 0:
+        sign = -1.
+        
     # leave an epsilon of room on either side when calculating tick positions
-    left_bound = left_bound * (1 - EPS)
-    right_bound = right_bound * (1 + EPS)
+    left_bound = left_bound * (1 - EPS * sign)
+    right_bound = right_bound * (1 + EPS * sign)
     # the leftmost tick must be right of (or equal to) left_bound
     true_left = (left_bound // step) * step
     if (left_bound - true_left) / step > EPS:

@@ -35,6 +35,8 @@ VMP_DATA_LN = b"VMP data".ljust(MODULE_LN_SIZE, b' ')
 # byte value marking the beginning of the data stream
 DATA_SENTINEL = 0x01
 
+ACCEPTED_VERSIONS = [1101, 1146, 1152]
+
 # attributes of a data column
 COL_NAME = 0
 COL_FMT = 1
@@ -100,7 +102,9 @@ def parseVMPDataPoint(dataBlock, columns, offsets):
 # VMP sections -> Settings, Data, Log
 class VMPsection(object):
     # initializes the object using header
-    def __init__(self, datablock, section_sn = None, section_ln = None):
+    def __init__(self, datablock, version, section_sn = None, section_ln = None):
+        assert version in ACCEPTED_VERSIONS, "Version %s not supported" % (version)
+        self.softVersion = version
         ptr = common.pointer()
         common.checkField(datablock, ptr, HEADER)
         if section_sn is not None and section_ln is not None:
@@ -110,8 +114,16 @@ class VMPsection(object):
             common.getRaw(datablock, ptr, MODULE_SN_SIZE)
             common.getRaw(datablock, ptr, MODULE_LN_SIZE)
             
-        self.dataSize = common.getField(datablock, ptr, *common.UINT32)
-        self.version = common.getField(datablock, ptr, *common.UINT32)
+        # here, the different versions have different fields. for now, we try to guess which.
+        if self.softVersion == 1152:
+            # some field that is always -1
+            common.getField(datablock, ptr, *common.UINT32)
+            # read the next field as a qword integer
+            self.dataSize = common.getField(datablock, ptr, *common.UINT64)
+        else:
+            self.dataSize = common.getField(datablock, ptr, *common.UINT32)
+            
+        self.secVersion = common.getField(datablock, ptr, *common.UINT32)
         # get the date string
         self.date = str(common.getRaw(datablock, ptr, DATE_SIZE), "utf-8")
         # data follows
@@ -123,19 +135,23 @@ class VMPsection(object):
         return self.end
     
 class VMPsettings(VMPsection):
-    def __init__(self, datablock):
+    def __init__(self, datablock, version):
         # pass to super
-        super(VMPsettings, self).__init__(datablock, VMP_SET_SN, VMP_SET_LN)
-        # do something with data
+        super(VMPsettings, self).__init__(datablock, version, VMP_SET_SN, VMP_SET_LN)
+        # do something with the setting information
         return
     
 class VMPdata(VMPsection):
-    def __init__(self, datablock):
-        super(VMPdata, self).__init__(datablock, VMP_DATA_SN, VMP_DATA_LN)
+    def __init__(self, datablock, version):
+        super(VMPdata, self).__init__(datablock, version, VMP_DATA_SN, VMP_DATA_LN)
         ptr = common.pointer()
         # get the datafields
         self.numDataPts = common.getField(self.data, ptr, *common.UINT32)
-        self.numCols = common.getField(self.data, ptr, *common.UINT8)
+        if self.softVersion == 1152:
+            self.numCols = common.getField(self.data, ptr, *common.UINT16)
+        else:
+            self.numCols = common.getField(self.data, ptr, *common.UINT8)
+            
         self.colList = []
         self.hasFlags = False
         for i in range(self.numCols):
@@ -143,10 +159,35 @@ class VMPdata(VMPsection):
             self.colList.append(colData)
             if colData[COL_FMT] is None:
                 self.hasFlags = True
-            
+           
+        # the data sentinel will not always assume a fixed value, making this unreliable
+        '''
         while common.getField(self.data, ptr, *common.UINT8) != DATA_SENTINEL:
             continue
+            
+        '''
         
+        # instead, we calculate the start of data based on the data size. assumes full blocks.
+        # first, create numpy ndarray data structure
+        self.record_spec = []
+        if self.hasFlags:
+            self.record_spec.append(("flags", np.uint8))
+            
+        for col in self.colList:
+            if col[COL_FMT] is None:
+                # flag value - skip
+                continue
+            else:
+                self.record_spec.append((col[COL_NAME], common.NP_TYPES[col[COL_FMT]]))
+                
+        # then, compute offsets
+        data_offs_rel_content_start = self.dataSize - self.numDataPts * np.dtype(self.record_spec).itemsize
+        if self.softVersion == 1101:
+            # there is a bug in this version where the last record is not transferred
+            ptr.setValue(data_offs_rel_content_start - np.dtype(self.record_spec).itemsize)
+        else:
+            ptr.setValue(data_offs_rel_content_start)
+            
         self.ptr = ptr
         return
     
@@ -175,22 +216,11 @@ class VMPdata(VMPsection):
     
     # version that takes advantage of numpy's frombuffer function
     def parseVec(self):
-        # create numpy ndarray data structure
-        record_spec = []
-        if self.hasFlags:
-            record_spec.append(("flags", np.uint8))
-            
-        for col in self.colList:
-            if col[COL_FMT] is None:
-                # flag value - skip
-                continue
-            else:
-                record_spec.append((col[COL_NAME], common.NP_TYPES[col[COL_FMT]]))
-                
         # profiling
         startTime = time.perf_counter()
-        data = np.frombuffer(self.data, dtype = np.dtype(record_spec), count = self.numDataPts, offset = self.ptr.getValue())
-        dataframe = pd.DataFrame(data = data, columns = [_[0] for _ in record_spec])
+        print(self.record_spec, np.dtype(self.record_spec).itemsize, self.numDataPts)
+        data = np.frombuffer(self.data, dtype = np.dtype(self.record_spec), count = self.numDataPts, offset = self.ptr.getValue())
+        dataframe = pd.DataFrame(data = data, columns = [_[0] for _ in self.record_spec])
         
         self.dataList = dict()
         for col in self.colList:
@@ -254,24 +284,29 @@ class VMPdata(VMPsection):
         self.ptr.add(self.numDataPts * self.dataBlockSize)
         return
     
-    def getDataFrame(self, mp = "None"):
-        if mp == "MP":
-            self.parseMP()
-        elif mp == "Vec":
-            self.parseVec()
-        else:
+    def getDataFrame(self, mp = None):
+        if mp is None:
+            # default parse mode
             self.parse()
-            
+        else:
+            if mp == "MP":
+                self.parseMP()
+            elif mp == "Vec":
+                self.parseVec()
+            else:
+                print("Warning: Unrecognized parse mode %s. Falling back to default parse method." % (mp))
+                self.parse()
+                
         return pd.DataFrame(self.dataList)
     
-def fromFile(fileName):
+def fromFile(fileName, version):
     ptr = common.pointer()
     with open(fileName, "rb") as f:
         contents = f.read()
         common.checkField(contents, ptr, FILE_HEADER)
         
     # assume that we start with VMP settings section
-    x = VMPsettings(contents[ptr.getValue(): ])
+    x = VMPsettings(contents[ptr.getValue(): ], version)
     ptr.add(x.getEnd())
-    y = VMPdata(contents[ptr.getValue(): ])
+    y = VMPdata(contents[ptr.getValue(): ], version)
     return x, y
