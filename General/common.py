@@ -212,10 +212,10 @@ def createOutputFileName(inputFiles, suffix, extension = None):
     # strip extensions
     for inputFile in inputFiles[1: ]:
         r, ext_ = os.path.splitext(inputFile)
-        if ext != ext_: assert False
+        if extension is None and ext != ext_: assert False
         roots.append(r)
         
-    common_part = os.path.commonprefix(roots)
+    common_part = os.path.commonprefix(roots).strip('_')
     if extension is not None:
         ext = '.' + extension
         
