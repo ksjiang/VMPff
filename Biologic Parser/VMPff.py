@@ -74,6 +74,7 @@ VMP_DATA_FIELD_LIST = {
         0x83: ("Ns", *common.UINT16, *common.NONE_FIELD), 
         0xa9: ("Cs", *common.SINGLE, *common.NONE_FIELD), 
         0xac: ("Cp", *common.SINGLE, *common.NONE_FIELD), 
+        0x1b6: ("Step time", *common.DOUBLE, *common.NONE_FIELD), 
         0x1d3: ("Q charge/discharge", *common.DOUBLE, *common.NONE_FIELD), 
         0x1d4: ("half cycle", *common.UINT32, *common.NONE_FIELD), 
         }
@@ -284,10 +285,10 @@ class VMPdata(VMPsection):
         self.ptr.add(self.numDataPts * self.dataBlockSize)
         return
     
-    def getDataFrame(self, mp = None):
-        if mp is None:
-            # default parse mode
-            self.parse()
+    def getDataFrame(self, mp = False):
+        if mp == False:
+            # use the fastest parse mode
+            self.parseVec()
         else:
             if mp == "MP":
                 self.parseMP()
