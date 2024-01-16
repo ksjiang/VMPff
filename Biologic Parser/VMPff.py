@@ -218,7 +218,7 @@ class VMPdata(VMPsection):
     def parseVec(self):
         # profiling
         startTime = time.perf_counter()
-        print(self.record_spec, np.dtype(self.record_spec).itemsize, self.numDataPts)
+#        print(self.record_spec, np.dtype(self.record_spec).itemsize, self.numDataPts)
         data = np.frombuffer(self.data, dtype = np.dtype(self.record_spec), count = self.numDataPts, offset = self.ptr.getValue())
         dataframe = pd.DataFrame(data = data, columns = [_[0] for _ in self.record_spec])
         
