@@ -46,6 +46,26 @@ NP_TYPES = {
 # to denote an empty byte or bit field
 NONE_FIELD = (None, None)
 
+# floating-point "not a number"
+NAN = float("NaN")
+EPS = np.finfo(float).eps
+
+# custom statistical methods
+def mean(l):
+    if len(l) > 0:
+        return sum(l) / len(l)
+    
+    return NAN
+
+def deviation(l):
+    if len(l) >= 3:
+        return np.std(l)
+    
+    if len(l) == 2:
+        return np.abs(l[0] - l[1]) / 2.
+    
+    return NAN
+
 # a pointer object that can be used to keep track of position within a data block
 class pointer(object):
     def __init__(self, value = 0):
@@ -143,10 +163,6 @@ def ternary(condition, valueIfTrue, valueIfFalse):
         return valueIfTrue
     else:
         return valueIfFalse
-
-# floating-point "not a number"
-NAN = float("NaN")
-EPS = np.finfo(float).eps
 
 # some styles that we can use to keep consistency across figures
 

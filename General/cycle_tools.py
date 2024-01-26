@@ -103,13 +103,14 @@ class GalvanostaticCyclingExperiment(object):
                 "voltage": V, 
                 })
     
-    def VvsCapacity_hc(self, cycle, half_cycle, relative = True, include_rest = False):
+    def VvsCapacity_hc(self, cycle, half_cycle, relative = True, rectify = True, include_rest = False):
         cycleData = self.getCycleData_hc(cycle, half_cycle, include_rest = include_rest)
         Q, V = np.array(cycleData["Q-Q0"]), np.array(cycleData["Ewe"])
         # compute specific capacity
         Q = specCapacity(Q, self.area)
-        if relative and len(Q) > 0:
-            Q = np.abs(Q - Q[FIRST])
+        if len(Q) > 0:
+            if relative: Q = Q - Q[FIRST]
+            if rectify: Q = np.abs(Q)
             
         return pd.DataFrame({
                 "capacity": Q, 
