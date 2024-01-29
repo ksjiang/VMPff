@@ -49,7 +49,7 @@ class MTICycMODE1CyclingExperiment(MTICycExperiment, cycle_tools.MODE1CyclingExp
 class MTICycPNNLCyclingExperiment(MTICycExperiment, cycle_tools.PNNLCyclingExperiment):
     def __init__(self, area):
         MTICycExperiment.__init__(self)
-        cycle_tools.PNNLCyclingExperiment.__init__(self, area, REST = (1, 0), INITIAL_PLATING = (2, 1), INITIAL_STRIPPING = (4, 2), TEST_PLATING = (6, 3), SHORT_CYCLE_PLATING = (8, 4), SHORT_CYCLE_STRIPPING = (10, 5), TEST_STRIPPING = (13, 24), NUM_SHORT_CYCLES = 10)
+        cycle_tools.PNNLCyclingExperiment.__init__(self, area, REST = (1, 0), INITIAL_PLATING = (2, 1), INITIAL_STRIPPING = (4, 2), TEST_PLATING = (6, 3), SHORT_CYCLE_STRIPPING = (8, 4), SHORT_CYCLE_PLATING = (10, 5), TEST_STRIPPING = (13, 24), NUM_SHORT_CYCLES = 10)
         return
     
     
