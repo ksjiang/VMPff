@@ -66,6 +66,22 @@ class GalvanostaticCyclingExperiment(object):
             
         return pd.concat(half_cycles, ignore_index = True)
     
+    # selects the prefix of the data where the voltage is below a specified threshold. direction argument
+    # refers to whether the threshold is a lower limit (0) or upper limit (1)
+    def thresholdIdx(self, series, threshold, direction):
+        if direction == 0:
+            crossed = np.where(series < threshold)[0]
+        elif direction == 1:
+            crossed = np.where(series > threshold)[0]
+        else:
+            assert False, "direction argument should be 0 (lower) or 1 (upper)"
+            
+        if crossed.shape[0] == 0:
+            # if the threshold is never crossed, just return the entire series
+            return series.shape[0]
+        else:
+            return crossed[0]
+    
     # =============================================================================================
     
     def getVvsTAfterStep(self, step_id = None, relative = True):
@@ -90,12 +106,16 @@ class GalvanostaticCyclingExperiment(object):
     def getCycleData_hc(self, cycle, half_cycle, include_rest):
         raise NotImplementedError
         
-    def VvsT_hc(self, cycle, half_cycle, relative = False, include_rest = False):
+    def VvsT_hc(self, cycle, half_cycle, relative = False, include_rest = False, Vcutoff = None):
         cycleData = self.getCycleData_hc(cycle, half_cycle, include_rest = include_rest)
         t, V = np.array(cycleData["time"]), np.array(cycleData["Ewe"])
+        if Vcutoff is not None:
+            firstCrossing = self.thresholdIdx(V, *Vcutoff)
+            t, V = t[: firstCrossing], V[: firstCrossing]
+            
         t = sec2hr(t)
         if relative and len(t) > 0:
-            # calculate time relative to cycle start
+            # calculate time relative to cycle start (should always be positive)
             t = t - t[FIRST]
             
         return pd.DataFrame({
@@ -103,9 +123,13 @@ class GalvanostaticCyclingExperiment(object):
                 "voltage": V, 
                 })
     
-    def VvsCapacity_hc(self, cycle, half_cycle, relative = True, rectify = True, include_rest = False):
+    def VvsCapacity_hc(self, cycle, half_cycle, relative = True, rectify = True, include_rest = False, Vcutoff = None):
         cycleData = self.getCycleData_hc(cycle, half_cycle, include_rest = include_rest)
         Q, V = np.array(cycleData["Q-Q0"]), np.array(cycleData["Ewe"])
+        if Vcutoff is not None:
+            firstCrossing = self.thresholdIdx(V, *Vcutoff)
+            Q, V = Q[: firstCrossing], V[: firstCrossing]
+            
         # compute specific capacity
         Q = specCapacity(Q, self.area)
         if len(Q) > 0:

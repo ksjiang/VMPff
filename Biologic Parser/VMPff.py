@@ -31,6 +31,8 @@ VMP_SET_SN = b"VMP Set".ljust(MODULE_SN_SIZE, b' ')
 VMP_SET_LN = b"VMP settings".ljust(MODULE_LN_SIZE, b' ')
 VMP_DATA_SN = b"VMP data".ljust(MODULE_SN_SIZE, b' ')
 VMP_DATA_LN = b"VMP data".ljust(MODULE_LN_SIZE, b' ')
+VMP_LOG_SN = b"VMP LOG".ljust(MODULE_SN_SIZE, b' ')
+VMP_LOG_LN = b"VMP LOG".ljust(MODULE_LN_SIZE, b' ')
 
 # byte value marking the beginning of the data stream
 DATA_SENTINEL = 0x01
@@ -140,6 +142,13 @@ class VMPsettings(VMPsection):
         # pass to super
         super(VMPsettings, self).__init__(datablock, version, VMP_SET_SN, VMP_SET_LN)
         # do something with the setting information
+        return
+    
+class VMPlog(VMPsection):
+    def __init__(self, datablock, version):
+        # pass to super
+        super(VMPlog, self).__init__(datablock, version, VMP_LOG_SN, VMP_LOG_LN)
+        # do something with the log information
         return
     
 class VMPdata(VMPsection):
