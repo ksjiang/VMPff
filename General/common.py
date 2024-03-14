@@ -9,6 +9,7 @@ Created on Mon Aug 28 18:24:01 2023
 import os
 import struct
 from matplotlib.patches import Rectangle, Wedge
+import colorsys
 import numpy as np
 import scipy.integrate
 
@@ -180,6 +181,7 @@ WTALL_DIMS = (7, 10)
 CAPTION_SIZE = 16
 LONG_CAPTION_SIZE = 12
 CBAR_SIZE = (1, 6)
+CBAR_SIZE_HORIZ = (10, 1)
 CBAR_PAD = 20
 CBAR_STANDALONE_PAD = 45
 CBAR_TEXT_SIZE = 40
@@ -282,3 +284,7 @@ def createTicks(left_bound, right_bound, step):
         true_right -= step
         
     return np.arange(true_left, true_right + 0.5 * step, step)
+
+def scale_lightness(color_rgb, scale_l):
+    h, l, s = colorsys.rgb_to_hls(*color_rgb)
+    return colorsys.hls_to_rgb(h, min(1, l * scale_l), s)
